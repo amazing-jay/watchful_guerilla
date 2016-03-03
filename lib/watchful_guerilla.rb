@@ -1,25 +1,37 @@
 require "watchful_guerilla/version"
 
-class WatchfulGuerilla
+module WatchfulGuerilla
+
+  mattr_accessor :trace_enabled,
+    :profile_enabled,
+    :measure_enabled,
+    :reporting_threshold
+
 
   #################
   # Configuration #
   #################
 
-  def self.toggle_tracing(state = true)
-    @trace_enabled = !!state
+  def self.configure
+    yield(self)
+    ActiveRecord::Base.register_filters
   end
 
-  def self.toggle_profiling(state = true)
-    @profile_enabled = !!state
+
+  def self.tracing(state = false)
+    self.trace_enabled = !!state
   end
 
-  def self.toggle_measuring(state = true)
-    @measure_enabled = !!state
+  def self.profiling(state = false)
+    self.profile_enabled = !!state
+  end
+
+  def self.measuring(state = false)
+    self.measure_enabled = !!state
   end
 
   def self.reporting_threshold(milliseconds = 20)
-    @reporting_threshold = milliseconds / 1000.0
+    self.reporting_threshold = milliseconds / 1000.0
   end
 
 
@@ -27,9 +39,9 @@ class WatchfulGuerilla
   # Initialization #
   ##################
 
-  toggle_tracing      false
-  toggle_profiling    false
-  toggle_measuring    false
+  tracing
+  profiling
+  measuring
   reporting_threshold
 
 
