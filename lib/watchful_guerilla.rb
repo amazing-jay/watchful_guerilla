@@ -1,4 +1,5 @@
 require "watchful_guerilla/version"
+require "benchmark"
 
 module WatchfulGuerilla
 
