@@ -6,7 +6,7 @@ require "watchful_guerilla/version"
 
 Gem::Specification.new do |s|
   s.name          = "watchful_guerilla"
-  s.version       = RealCerealBusiness::VERSION
+  s.version       = WatchfulGuerilla::VERSION
   s.authors       = ["The Honest Company", "Jay Crouch"]
   s.email         = ["i.jaycrouch@gmail.com"]
 
