@@ -3,12 +3,6 @@ require "benchmark"
 
 module WatchfulGuerilla
 
-  mattr_accessor :trace_enabled,
-    :profile_enabled,
-    :measure_enabled,
-    :reporting_threshold
-
-
   #################
   # Configuration #
   #################
@@ -20,19 +14,19 @@ module WatchfulGuerilla
 
 
   def self.tracing(state = false)
-    self.trace_enabled = !!state
+    @trace_enabled = !!state
   end
 
   def self.profiling(state = false)
-    self.profile_enabled = !!state
+    @profile_enabled = !!state
   end
 
   def self.measuring(state = false)
-    self.measure_enabled = !!state
+    @measure_enabled = !!state
   end
 
   def self.reporting_threshold(milliseconds = 20)
-    self.reporting_threshold = milliseconds / 1000.0
+    @reporting_threshold = milliseconds / 1000.0
   end
 
 
