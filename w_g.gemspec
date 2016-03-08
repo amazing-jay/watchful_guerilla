@@ -2,7 +2,7 @@
 $:.push File.expand_path("../lib", __FILE__)
 
 # Maintain your gem's version:
-require "watchful_guerilla/version"
+require "w_g/version"
 
 Gem::Specification.new do |s|
   s.name          = "watchful_guerilla"
