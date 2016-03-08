@@ -1,5 +1,5 @@
-WatchfulGuerilla.configure do |config|
-  config_file_path = File.join(Rails.root, 'config', 'watchful_guerilla.yml')
+WG.configure do |config|
+  config_file_path = File.join(Rails.root, 'config', 'w_g.yml')
   environment = ENV["RAILS_ENV"] || ENV["RACK_ENV"] || 'development'
 
   @config_file = YAML::load_file(config_file_path)

@@ -1,8 +1,8 @@
 require 'spec_helper'
 
-describe WatchfulGuerilla do
+describe WG do
   it 'has a version number' do
-    expect(WatchfulGuerilla::VERSION).not_to be nil
+    expect(WG::VERSION).not_to be nil
   end
 
   it 'does something useful' do

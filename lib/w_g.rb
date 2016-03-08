@@ -1,7 +1,7 @@
-require "watchful_guerilla/version"
+require "w_g/version"
 require "benchmark"
 
-class WatchfulGuerilla
+class WG
 
   #################
   # Configuration #
@@ -125,7 +125,7 @@ class WatchfulGuerilla
     print_label(output[:grand_totals], fmt(t_time), s_time, o_time + print_time)
 
     ap ""
-    ap "WatchfulGuerilla Measuring Report"
+    ap "WG Measuring Report"
     ap ""
     ap "----    Block Time (ms) -- Overhead Time (ms) -- Category"
     ap ""
