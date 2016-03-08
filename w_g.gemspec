@@ -5,8 +5,8 @@ $:.push File.expand_path("../lib", __FILE__)
 require "w_g/version"
 
 Gem::Specification.new do |s|
-  s.name          = "watchful_guerilla"
-  s.version       = WatchfulGuerilla::VERSION
+  s.name          = "w_g"
+  s.version       = WG::VERSION
   s.authors       = ["The Honest Company", "Jay Crouch"]
   s.email         = ["i.jaycrouch@gmail.com"]
 
