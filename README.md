@@ -20,9 +20,25 @@ Or install it yourself as:
 
     $ gem install watchful_guerilla
 
+## Configuration
+
+And then execute:
+
+    $ rails g watchful_guerilla:install
+
+To add an initializer to your application.
+
 ## Usage
 
-TODO: Write usage instructions here
+[0..5].each do |x|
+  WG.measure 'outer label', x do
+    y = x * 50
+    z = WG.measure 'inner label', x, y do
+      x + y
+      sleep(1) if x == 3
+    end
+  end
+end
 
 ## Development
 

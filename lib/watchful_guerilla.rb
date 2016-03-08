@@ -1,7 +1,7 @@
 require "watchful_guerilla/version"
 require "benchmark"
 
-module WatchfulGuerilla
+class WatchfulGuerilla
 
   #################
   # Configuration #
@@ -34,6 +34,8 @@ module WatchfulGuerilla
   # Initialization #
   ##################
 
+
+  #set everything to defaults
   tracing
   profiling
   measuring
@@ -84,73 +86,83 @@ module WatchfulGuerilla
   # Measuring #
   #############
 
-  def self.measure(category = '*unspecified*', *identifiers)
-    return yield unless @measure_enabled
-    result = nil
-    current = nil
-    overhead_time = Benchmark.realtime {
-      ap "--***#{@i}***--#{category}:: #{identifiers}" if @trace_enabled
-      old_top = @top
-      @top = current = new(category, identifiers)
-      if @root
-        old_top.children << @top
-      else
-        @category_times = {}
-        @category_overhead_times = {}
-        @long_calls = []
-        @root = @top
+  def self.print_measured_results(root)
+    output = {}
+    print_time = Benchmark.realtime {
+      output.merge!({
+        errors: [],
+        blocks: [],
+        totals: [],
+        grand_totals: [],
+        long_blocks: []
+      })
+      @super_category_times = {}
+      @category_times = {}
+      @long_calls = []
+      root.sumarize
+
+      @category_times.sort_by{|k,v| v[0]}.reverse.each do |category, (s_time, o_time, errored)|
+        if errored
+          print_label output[:errors], category, s_time, o_time
+        else
+          print_label output[:blocks], category, s_time, o_time
+        end
+        increment_summary_category('', s_time, o_time)
+        super_category = /\((.*)\)\:/.match(category.to_s).try(:[],1)
+        increment_summary_category(super_category, s_time, o_time) if super_category
       end
-      result = @top.measure Proc.new
-      @top = old_top
-      unless @top
-        print_measured_results
-        @root = nil
+
+      @super_category_times.sort_by{|k,v| v[0]}.reverse.each do |super_category, (s_time, o_time)|
+        print_label(output[:totals], super_category, s_time, o_time) unless super_category.blank?
+      end
+
+      @long_calls.sort_by{|v| v[1]}.reverse.each do |(category, s_time)|
+        output[:long_blocks] << "---- #{fmt(s_time)} >> #{category}"
       end
     }
-    @top.overhead_time += overhead_time - current.total_time if @top.present?
-    raise current.exception if current.exception.present?
-    result
+    s_time, o_time = @super_category_times['']
+    t_time = s_time + o_time + print_time
+    print_label(output[:grand_totals], fmt(t_time), s_time, o_time + print_time)
+
+    ap ""
+    ap "WatchfulGuerilla Measuring Report"
+    ap ""
+    ap "----    Block Time (ms) -- Overhead Time (ms) -- Category"
+    ap ""
+    ap "GRAND TOTALS"
+    output[:grand_totals].each { |s| ap s }
+    ap ""
+    ap "CATEGORY TOTALS"
+    output[:totals].each { |s| ap s }
+    ap ""
+    ap "BLOCKS"
+    output[:blocks].each { |s| ap s }
+    ap ""
+    ap "ERROR BLOCKS"
+    ap "(uncaught exceptions prevented inspection)"
+    output[:errors].each { |s| ap s }
+    ap ""
+    ap "LONG BLOCKS"
+    output[:long_blocks].each { |s| ap s }
   end
 
-  def self.print_measured_results
-    total_time, total_overhead_time, sbn_total_time, sbn_total_overhead_time = 0, 0, 0, 0
-    ap ""
-    ap "---- Block Time -- Unmarked Time -- Overhead Time -- Category"
-    @category_times.sort_by{|k,v| v[0]}.reverse.each do |category, (t_time, p_time, o_time)|
-      total_time += p_time
-      total_overhead_time += o_time
-      if category.to_s.start_with?("(SBN):")
-        sbn_total_time += p_time
-        sbn_total_overhead_time += o_time
-      end
-      t_time_s = format("%.3f", t_time*1000).rjust(10,' ')
-      p_time_s = format("%.3f", p_time*1000).rjust(13,' ')
-      o_time_s = format("%.3f", o_time*1000).rjust(13,' ')
-      ap "---- #{t_time_s} -- #{p_time_s} -- #{o_time_s} -- #{category}"
-    end
-    #print totals
-    p_time_s = format("%.3f", total_time*1000).rjust(13,' ')
-    o_time_s = format("%.3f", total_overhead_time*1000).rjust(13,' ')
-    ap "----               #{p_time_s} -- #{o_time_s} -- TOTALS"
-    p_time_s = format("%.3f", sbn_total_time*1000).rjust(16,' ')
-    o_time_s = format("%.3f", sbn_total_overhead_time*1000).rjust(13,' ')
-    ap "----               #{p_time_s} -- #{o_time_s} -- SBN TOTALS"
-    ap ""
-    ap "LONG UNMARKED BLOCKS"
-    @long_calls.sort_by{|v| v[1]}.reverse.each do |(category, p_time)|
-      p_time_s = format("%.3f", p_time*1000).rjust(16,' ')
-      ap "---- #{p_time_s} >> #{category}"
-    end
+  def self.print_label(output, label, s_time, o_time)
+    output << "---- #{fmt(s_time)} -- #{fmt(o_time)} -- #{label}"
+  end
+
+  def self.increment_summary_category(category, s_time, o_time)
+    category_time = (@super_category_times[category] ||= [0,0])
+    category_time[0] += s_time
+    category_time[1] += o_time
   end
 
   def self.increment_category_time(node)
-    category_time = @category_times[node.category] || [0,0,0]
-    category_time[0] += node.total_time - node.overhead_time
-    category_time[1] += node.pure_time
-    category_time[2] += node.overhead_time
-    @category_times[node.category] = category_time
+    category_time = (@category_times[node.category] ||= [0,0,false])
+    category_time[0] += node.self_time
+    category_time[1] += node.overhead_time - node.total_time
+    category_time[2] ||= !node.complete
 
-    @long_calls << [node.identifier, node.pure_time] if node.pure_time > @reporting_threshold
+    @long_calls << [node.identifier, node.self_time] if node.self_time > @reporting_threshold
   end
 
   def self.measure_block state = true
@@ -161,35 +173,91 @@ module WatchfulGuerilla
     result
   end
 
-  ###########
-  # PRIVATE #
-  ###########
+  def self.measure(category = '*unspecified*', *identifiers)
+    return yield unless @measure_enabled
+    result = nil
+    current = nil
+    overhead_time = Benchmark.realtime {
+      ap "--******--#{category}:: #{identifiers}" if @trace_enabled
+      old_top = @top
+      current = @top = new(@top, category, identifiers)
+      begin
+        if @root
+          old_top.children << current
+        else
+          @measure_exception = nil
+          @root = current
+        end
+        current.total_time = Benchmark.realtime { result = yield }
+      ensure
+        @root = nil if @root == current
+        @top = old_top
+      end
+    }
+    current.overhead_time = overhead_time
+    current.complete = true
 
-  private
+    print_measured_results(current) unless @root
+    result
+  end
 
-  attr_accessor :total_time, :child_time, :self_time, :overhead_time, :pure_time, :children, :category, :identifiers, :exception
+  def self.fmt(value)
+    format("%.3f", value*1000).rjust(18,' ')
+  end
 
-  def initialize(category, identifiers = [])
+  def fmt(value)
+    format("%.3f", value*1000).rjust(18,' ')
+  end
+
+
+  attr_accessor :complete, :total_time, :child_time, :self_time, :overhead_time, :children, :category, :identifiers
+  # for debugging
+  # attr_accessor :parent
+
+  def initialize(parent, category, identifiers = [])
+    #self.parent = parent
     self.identifiers = identifiers
     self.category = category
     self.children = []
     self.overhead_time = 0
+    self.total_time = 0
+    self.child_time = 0
+    self.self_time = 0
+    self.complete = false
   end
 
-  def measure(block)
-    result = nil
-    self.total_time = Benchmark.realtime do
-      begin
-        result = block.call
-      rescue => e
-        self.exception = e
-      end
-    end
-    self.child_time = children.map(&:total_time).sum
+  # for debugging
+
+  # def trace
+  #   trace_root
+  #   trace_children
+  # end
+
+  # def trace_children(level = 0)
+  #   ap [level, overhead_time * 1000, total_time * 1000, self_time * 1000, child_time * 1000]
+  #   children.each { |c|
+  #     c.trace_children(level + 1)
+  #   }
+  #   nil
+  # end
+
+  # def trace_root
+  #   if parent
+  #     level = parent.trace_root + 1
+  #     ap [level, overhead_time * 1000, total_time * 1000]
+  #     level
+  #   else
+  #     ap [0, overhead_time * 1000, total_time * 1000]
+  #     0
+  #   end
+  # end
+
+  def sumarize
+    self.child_time = children.map(&:sumarize).sum
+    self.overhead_time = self.total_time = child_time unless complete
     self.self_time = total_time - child_time
-    self.pure_time = self_time - overhead_time
     increment_category_time
-    result
+    overhead_time
   end
 
   def increment_category_time
@@ -200,25 +268,17 @@ module WatchfulGuerilla
     @identifier ||= ([category] + identifiers).join(', ')
   end
 
-  # def is_root?
-  #   self.class.check_root(self)
-  # end
-
-  # def print_measured_results
-  #   self.print_measured_results
-  # end
-
-  def self.filter(controller, &block)
-    return block.call unless @measure_enabled
+  def self.filter(controller)
+    return yield unless @measure_enabled
     tag = "#{controller.class.name}.#{controller.action_name}"
+
     start_time = (Time.current.to_f * 1000.0).to_i
-    ap "***** action_start:: #{tag} -> #{start_time}"
-    measure("(controller): #{tag}") do
-      block.call
-    end
+    measure("(controller): #{tag}") { yield }
     end_time = (Time.current.to_f * 1000.0).to_i
-    ap "***** action_end:: #{tag} -> #{end_time}"
-    ap "***** action_total:: #{tag} -> #{end_time - start_time}"
+
+    ap "***** watchful guerilla filter start  :: #{tag} -> #{start_time}"
+    ap "***** watchful guerilla filter end    :: #{tag} -> #{end_time}"
+    ap "***** watchful guerilla filter total  :: #{tag} -> #{fmt((end_time - start_time)/1000)}"
   end
 
 end
