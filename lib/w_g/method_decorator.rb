@@ -25,8 +25,6 @@ class WG
           target                      =   options.delete(:target)
           klass                       =   target.constantize
 
-          #options[:except_class_methods] ||= [:attr_internal_naming_format, :attr_internal_naming_format=, :nesting]
-
           klass_methods = extract_methods_from_options(klass, options, :instance_methods, :instance_methods) -
             extract_methods_from_options(klass, options, :instance_methods, :except_instance_methods)
 
@@ -49,7 +47,8 @@ class WG
           methods.map { |method|
             case method
             when true
-              lookup_methods(klass, type)
+              # .methods & .instance_methods return public & protected only
+              lookup_methods(klass, type) + lookup_methods(klass, "private_#{type}".to_sym)
             when :private
               lookup_methods(klass, "private_#{type}".to_sym)
             when :public
@@ -71,6 +70,7 @@ class WG
 
       def decorate_instance_method(klass, decorator, method_name, options, tag_block)
         tag = options[:tag] || "#{klass.name}.#{method_name}"
+        #ap "decorating #{tag}"
 
         klass.instance_eval do
           method_binding = instance_method(method_name)
@@ -83,6 +83,7 @@ class WG
 
       def decorate_class_method(klass, decorator, method_name, options, tag_block)
         tag = options[:tag] || "#{klass.name}##{method_name}"
+        #ap "decorating #{tag}"
         meta_klass = class << klass; self; end
 
         meta_klass.instance_eval do

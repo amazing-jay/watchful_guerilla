@@ -41,14 +41,14 @@ class WG
     return yield unless @measure_enabled
     tag = "#{controller.class.name}.#{controller.action_name}"
 
-    start_time = (Time.current.to_f * 1000.0).to_i
+    start_time = Time.current.to_i
     measure(tag) { yield }
-    end_time = (Time.current.to_f * 1000.0).to_i
+    end_time = Time.current.to_i
 
     # For debugging only
-    # ap "***** watchful guerilla filter start  :: #{tag} -> #{start_time}"
-    # ap "***** watchful guerilla filter end    :: #{tag} -> #{end_time}"
-    # ap "***** watchful guerilla filter total  :: #{tag} -> #{fmt((end_time - start_time)/1000)}"
+    ap "***** watchful guerilla filter start  :: #{tag} -> #{start_time}"
+    ap "***** watchful guerilla filter end    :: #{tag} -> #{end_time}"
+    ap "***** watchful guerilla filter total  :: #{tag} -> #{fmt(end_time - start_time)}"
   end
 
 
@@ -112,8 +112,9 @@ class WG
   # Sends measuring data to log
   # Traverses tree from root
   def self.print_measured_results(root)
+    execution_time = 0
     output = {}
-    root.end_time = Time.current
+    root.end_time = Time.current # printing is initialized before node closes
     print_time = Benchmark.realtime {
       output.merge!({
         errors: [],
@@ -145,30 +146,34 @@ class WG
       @long_calls.sort_by{|v| v[1]}.reverse.each do |(category, s_time)|
         output[:long_blocks] << "---- #{fmt(s_time)} >> #{category}"
       end
-    }
-    s_time, o_time, count = @super_category_times['']
-    t_time = s_time + o_time + print_time
-    print_label(output[:grand_totals], fmt(t_time), s_time, o_time + print_time, count)
 
-    ap ""
-    ap "WG Measuring Report"
-    ap ""
-    ap "-- Call Count -- Block Time (ms) -- Overhead Time (ms) -- Category"
-    ap ""
-    ap "GRAND TOTALS"
-    output[:grand_totals].each { |s| ap s }
-    ap ""
-    ap "CATEGORY TOTALS"
-    output[:totals].each { |s| ap s }
-    ap ""
-    ap "BLOCKS"
-    output[:blocks].each { |s| ap s }
-    ap ""
-    ap "ERROR BLOCKS (uncaught exceptions prevented complete measuring)"
-    output[:errors].each { |s| ap s }
-    ap ""
-    ap "LONG BLOCKS"
-    output[:long_blocks].each { |s| ap s }
+      s_time, o_time, count = @super_category_times['']
+      execution_time = s_time + o_time
+      print_label(output[:grand_totals], fmt(execution_time), s_time, o_time, count)
+
+      ap ""
+      ap "WG Measuring Report"
+      ap ""
+      ap "-- Call Count -- Block Time (ms) -- Overhead Time (ms) -- Category"
+      ap ""
+      ap "GRAND TOTALS"
+      output[:grand_totals].each { |s| ap s }
+      ap ""
+      ap "CATEGORY TOTALS"
+      output[:totals].each { |s| ap s }
+      ap ""
+      ap "BLOCKS"
+      output[:blocks].each { |s| ap s }
+      ap ""
+      ap "ERROR BLOCKS (uncaught exceptions prevented complete measuring)"
+      output[:errors].each { |s| ap s }
+      ap ""
+      ap "LONG BLOCKS"
+      output[:long_blocks].each { |s| ap s }
+    }
+
+    ap "PRINT TIME"
+    ap "--            -- #{fmt(execution_time,15)} -- #{fmt(print_time)} -- #{fmt(execution_time + print_time)}"
   end
 
   def self.print_label(output, label, s_time, o_time, count = nil)
